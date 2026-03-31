@@ -3733,10 +3733,9 @@ var INV = [{"id":"wine_1","name":"Fre","varietal":"NA Champagne","vintage":"NV",
       for (var i = 0; i < INV.length; i++) {
         if (INV[i].id === id) { wine = INV[i]; break; }
       }
-      var match = !q || text.indexOf(q) !== -1 || (wine && (
-        wine.varietal.toLowerCase().indexOf(q) !== -1 ||
-        wine.vintage.toLowerCase().indexOf(q) !== -1
-      ));
+      var searchText = text + ' ' + (wine ? wine.varietal.toLowerCase() + ' ' + wine.vintage.toLowerCase() + ' ' + wine.desc.toLowerCase() : '');
+      var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+      var match = !q || words.every(function(w) { return searchText.indexOf(w) !== -1; });
       if (match) {
         card.style.display = '';
         visible++;
