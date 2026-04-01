@@ -4080,7 +4080,12 @@ function esc(str) {
   var div = document.createElement('div');
   div.appendChild(document.createTextNode(str));
 
-fetchLiveData();
+var _guestVersion=null,_guestPollTimer=null;
+var GAS_VERSION_URL=GAS_URL.replace('action=guestMenu','action=version');
+function guestSmartSync(){fetch(GAS_VERSION_URL).then(function(r){return r.json()}).then(function(ver){if(!ver||ver.version===_guestVersion)return;_guestVersion=ver.version;fetchLiveData()}).catch(function(){})}
+function startGuestPoll(){if(_guestPollTimer)clearInterval(_guestPollTimer);_guestPollTimer=setInterval(guestSmartSync,30000)}
+fetchLiveData();startGuestPoll();
+document.addEventListener('visibilitychange',function(){if(document.hidden){if(_guestPollTimer){clearInterval(_guestPollTimer);_guestPollTimer=null}}else{guestSmartSync();startGuestPoll()}});
 </script>
 </body>
 </html>
