@@ -291,6 +291,125 @@ body {
   html { scroll-padding-top: 130px; }
   .section-title { font-size: 20px; }
 }
+================================================================================
+Add these rules after the existing .wine-card styles (before /* Footer */).
+
+/* ── By the Glass ── */
+.btg-section {
+  padding: 36px 0 8px;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, transparent 100%);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.btg-section-header {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #7C3AED;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding-bottom: 14px;
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btg-section-header::before {
+  content: '';
+  width: 3px;
+  height: 18px;
+  background: #7C3AED;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.btg-wine-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 4px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+  gap: 8px;
+  transition: background 0.15s;
+}
+
+.btg-wine-card:last-child {
+  border-bottom: none;
+}
+
+.btg-wine-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.btg-wine-varietal {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.btg-wine-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 2px;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+
+.btg-pour-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btg-pour-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.10);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.btg-pour-pill .btg-pill-price {
+  color: #7C3AED;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+/* BTG nav pill purple accent */
+.nav-pill[data-section="btgSection"] {
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.nav-pill[data-section="btgSection"]:hover,
+.nav-pill[data-section="btgSection"].active {
+  background: rgba(124, 58, 237, 0.10);
+  color: #7C3AED;
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+@media (min-width: 600px) {
+  .btg-wine-card { padding: 18px 12px; border-radius: 6px; }
+  .btg-wine-card:hover { background: rgba(124, 58, 237, 0.04); }
+  .btg-section-header { font-size: 20px; }
+}
+
+
+================================================================================
+
 </style>
 </head>
 <body>
@@ -336,7 +455,127 @@ body {
 </div>
 
 <main class="container" id="wineList">
-    <section id="champagne" class="wine-section">
+    ================================================================================
+
+--- Nav pill (insert as the FIRST pill inside <nav class="nav-scroll" id="navScroll">) ---
+
+    <a href="#btgSection" class="nav-pill" data-section="btgSection">By the Glass</a>
+
+--- BTG section (insert as the FIRST child inside <main class="container" id="wineList">, before the champagne section) ---
+
+    <section id="btgSection" class="wine-section btg-section" style="display:none;">
+      <h2 class="btg-section-header">By the Glass</h2>
+      <!-- Populated dynamically by applyLiveData() -->
+    </section>
+
+
+================================================================================
+}
+
+---
+
+Add this buildBTGCard() function before applyLiveData():
+
+function buildBTGCard(wine) {
+  var html = '<div class="btg-wine-card" data-wine-id="' + esc(wine.id) + '">';
+  html += '<div class="btg-wine-name">' + esc(wine.name) + '</div>';
+  if (wine.varietal) {
+    html += '<div class="btg-wine-varietal">' + esc(wine.varietal) + '</div>';
+  }
+  if (wine.desc) {
+    html += '<div class="btg-wine-desc">' + esc(wine.desc) + '</div>';
+  }
+  html += '<div class="btg-pour-row">';
+  (wine.pourSizes || []).forEach(function(pour) {
+    var label = pour.label || (pour.oz + 'oz');
+    html += '<span class="btg-pour-pill">'
+          + esc(label) + ' &middot; <span class="btg-pill-price">$' + esc(String(pour.price)) + '</span>'
+          + '</span>';
+  });
+  html += '</div>';
+  html += '</div>';
+  return html;
+}
+
+---
+
+Replace the existing applyLiveData() function with this updated version:
+
+function applyLiveData(data) {
+  /* ── Archive / delete handling (unchanged) ── */
+  Object.keys(data.archived || {}).forEach(function(id) {
+    var el = document.querySelector('[data-wine-id="' + id + '"]');
+    if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
+  });
+  (data.deletedIds || []).forEach(function(id) {
+    var el = document.querySelector('[data-wine-id="' + id + '"]');
+    if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
+  });
+
+  /* ── Inventory state / out-of-stock hiding (unchanged) ── */
+  var state = data.state || {};
+  INV.forEach(function(w) {
+    var s = state[w.id];
+    if (s) {
+      var live = w.sq - Number(s.used || 0) + Number(s.added || 0);
+      if (live <= 0) {
+        var el = document.querySelector('[data-wine-id="' + w.id + '"]');
+        if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
+      }
+    }
+  });
+
+  /* ── By the Glass ── */
+  var btgSection = document.getElementById('btgSection');
+  var btgWines = data.btgWines || [];
+
+  if (btgWines.length === 0) {
+    btgSection.style.display = 'none';
+    return;
+  }
+
+  /* Show section, clear any previous dynamic cards */
+  btgSection.style.display = '';
+  var existing = btgSection.querySelectorAll('.btg-wine-card');
+  existing.forEach(function(el) { el.remove(); });
+
+  /* Build cards */
+  var fragment = document.createDocumentFragment();
+  var temp = document.createElement('div');
+
+  btgWines.forEach(function(wine) {
+    while (temp.firstChild) {
+      fragment.appendChild(temp.firstChild);
+    }
+
+    /* Glass-only wines should NOT appear in the bottle list */
+    if (wine.glassOnly) {
+      var bottleCard = document.querySelector('.wine-card[data-wine-id="' + wine.id + '"]');
+      if (bottleCard) { bottleCard.style.display = 'none'; bottleCard.dataset.hidden = '1'; }
+    }
+    /* If glassOnly === false, the wine stays in its normal category section too (no action needed) */
+  });
+
+  btgSection.appendChild(fragment);
+
+  /* Re-bind search so it picks up new BTG cards */
+  var searchInput = document.getElementById('searchInput');
+  if (searchInput && searchInput.value.trim()) {
+    searchInput.dispatchEvent(new Event('input'));
+  }
+}
+
+---
+
+Note on scrollspy: The scrollspy IIFE already queries all `.nav-pill[data-section]` elements
+the scrollspy will automatically include "By the Glass" with zero JS changes.
+
+If your scrollspy runs before the DOM is fully loaded, wrap its IIFE call
+inside a DOMContentLoaded listener -- but the existing code already places the
+<script> at the bottom of <body>, so it runs after the DOM is parsed and no
+change is needed.
+
+<section id="champagne" class="wine-section">
       <h2 class="section-title">Champagne</h2>
       <div class="wine-card" data-wine-id="wine_119">
         <div class="wine-info">
@@ -3833,6 +4072,13 @@ function applyLiveData(data) {
     }
   });
 }
+
+================================================================================
+Add this esc() helper near the top of the <script> block (after var INV = [...]):
+
+function esc(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
 
 fetchLiveData();
 </script>
