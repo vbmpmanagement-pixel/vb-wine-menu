@@ -208,22 +208,6 @@ body {
   padding-top: 2px;
 }
 
-/* BTG section */
-.btg-section { display: none; }
-.btg-section.visible { display: block; }
-.btg-badge {
-  display: inline-block;
-  background: rgba(216,181,124,0.15);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-left: 8px;
-}
-
 /* No results */
 .no-results {
   text-align: center;
@@ -481,14 +465,12 @@ var INV = [{"id":"wine_298","name":"Chateau Baron Pichon Longueville","varietal"
 
   function liveSync() {
     fetch(GAS_URL)
-      .then(function(r) { return r.json(); })
+      .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function(data) {
         if (!data) return;
         applyLiveData(data);
       })
-      .catch(function(err) {
-        console.log('Sync error:', err);
-      });
+      .catch(function() {});
   }
 
   function applyLiveData(data) {
@@ -554,14 +536,16 @@ var INV = [{"id":"wine_298","name":"Chateau Baron Pichon Longueville","varietal"
   // Smart polling with visibility API
   function startPolling() {
     liveSync();
+    if (syncTimer) clearInterval(syncTimer);
     syncTimer = setInterval(liveSync, 30000);
 
     document.addEventListener('visibilitychange', function() {
       if (document.hidden) {
-        clearInterval(syncTimer);
+        if (syncTimer) clearInterval(syncTimer);
         syncTimer = null;
       } else {
         liveSync();
+        if (syncTimer) clearInterval(syncTimer);
         syncTimer = setInterval(liveSync, 30000);
       }
     });
