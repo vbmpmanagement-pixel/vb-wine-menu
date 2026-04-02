@@ -455,126 +455,10 @@ Add these rules after the existing .wine-card styles (before /* Footer */).
 </div>
 
 <main class="container" id="wineList">
-    ================================================================================
-
---- Nav pill (insert as the FIRST pill inside <nav class="nav-scroll" id="navScroll">) ---
-
-    <a href="#btgSection" class="nav-pill" data-section="btgSection">By the Glass</a>
-
---- BTG section (insert as the FIRST child inside <main class="container" id="wineList">, before the champagne section) ---
-
-    <section id="btgSection" class="wine-section btg-section" style="display:none;">
-      <h2 class="btg-section-header">By the Glass</h2>
-      <!-- Populated dynamically by applyLiveData() -->
-    </section>
-
-
-================================================================================
-}
-
----
-
-Add this buildBTGCard() function before applyLiveData():
-
-function buildBTGCard(wine) {
-  var html = '<div class="btg-wine-card" data-wine-id="' + esc(wine.id) + '">';
-  html += '<div class="btg-wine-name">' + esc(wine.name) + '</div>';
-  if (wine.varietal) {
-    html += '<div class="btg-wine-varietal">' + esc(wine.varietal) + '</div>';
-  }
-  if (wine.desc) {
-    html += '<div class="btg-wine-desc">' + esc(wine.desc) + '</div>';
-  }
-  html += '<div class="btg-pour-row">';
-  (wine.pourSizes || []).forEach(function(pour) {
-    var label = pour.label || (pour.oz + 'oz');
-    html += '<span class="btg-pour-pill">'
-          + esc(label) + ' &middot; <span class="btg-pill-price">$' + esc(String(pour.price)) + '</span>'
-          + '</span>';
-  });
-  html += '</div>';
-  html += '</div>';
-  return html;
-}
-
----
-
-Replace the existing applyLiveData() function with this updated version:
-
-function applyLiveData(data) {
-  /* ── Archive / delete handling (unchanged) ── */
-  Object.keys(data.archived || {}).forEach(function(id) {
-    var el = document.querySelector('[data-wine-id="' + id + '"]');
-    if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
-  });
-  (data.deletedIds || []).forEach(function(id) {
-    var el = document.querySelector('[data-wine-id="' + id + '"]');
-    if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
-  });
-
-  /* ── Inventory state / out-of-stock hiding (unchanged) ── */
-  var state = data.state || {};
-  INV.forEach(function(w) {
-    var s = state[w.id];
-    if (s) {
-      var live = w.sq - Number(s.used || 0) + Number(s.added || 0);
-      if (live <= 0) {
-        var el = document.querySelector('[data-wine-id="' + w.id + '"]');
-        if (el) { el.style.display = 'none'; el.dataset.hidden = '1'; }
-      }
-    }
-  });
-
-  /* ── By the Glass ── */
-  var btgSection = document.getElementById('btgSection');
-  var btgWines = data.btgWines || [];
-
-  if (btgWines.length === 0) {
-    btgSection.style.display = 'none';
-    return;
-  }
-
-  /* Show section, clear any previous dynamic cards */
-  btgSection.style.display = '';
-  var existing = btgSection.querySelectorAll('.btg-wine-card');
-  existing.forEach(function(el) { el.remove(); });
-
-  /* Build cards */
-  var fragment = document.createDocumentFragment();
-  var temp = document.createElement('div');
-
-  btgWines.forEach(function(wine) {
-    while (temp.firstChild) {
-      fragment.appendChild(temp.firstChild);
-    }
-
-    /* Glass-only wines should NOT appear in the bottle list */
-    if (wine.glassOnly) {
-      var bottleCard = document.querySelector('.wine-card[data-wine-id="' + wine.id + '"]');
-      if (bottleCard) { bottleCard.style.display = 'none'; bottleCard.dataset.hidden = '1'; }
-    }
-    /* If glassOnly === false, the wine stays in its normal category section too (no action needed) */
-  });
-
-  btgSection.appendChild(fragment);
-
-  /* Re-bind search so it picks up new BTG cards */
-  var searchInput = document.getElementById('searchInput');
-  if (searchInput && searchInput.value.trim()) {
-    searchInput.dispatchEvent(new Event('input'));
-  }
-}
-
----
-
-Note on scrollspy: The scrollspy IIFE already queries all `.nav-pill[data-section]` elements
-the scrollspy will automatically include "By the Glass" with zero JS changes.
-
-If your scrollspy runs before the DOM is fully loaded, wrap its IIFE call
-inside a DOMContentLoaded listener -- but the existing code already places the
-<script> at the bottom of <body>, so it runs after the DOM is parsed and no
-change is needed.
-
+<section id="btgSection" class="wine-section" style="display:none;">
+<h2 class="section-title" style="color:#7C3AED">By the Glass</h2>
+<div id="btgCards"></div>
+</section>
 <section id="champagne" class="wine-section">
       <h2 class="section-title">Champagne</h2>
       <div class="wine-card" data-wine-id="wine_119">
@@ -4071,14 +3955,29 @@ function applyLiveData(data) {
       }
     }
   });
+  var btgWines = data.btgWines || [];
+  var btgSection = document.getElementById('btgSection');
+  var btgCards = document.getElementById('btgCards');
+  if (!btgWines.length) { if(btgSection) btgSection.style.display='none'; return; }
+  if(btgSection) btgSection.style.display='';
+  if(btgCards) {
+    var h='';
+    btgWines.forEach(function(wine) {
+      var name=wine.name;
+      if(!name){var inv=INV.find(function(x){return x.id===wine.id});if(inv)name=inv.name}
+      if(!name)name=wine.id;
+      h+='<div class="wine-card" data-wine-id="'+wine.id+'" style="border-left:3px solid #7C3AED"><div class="wine-info"><div class="wine-name">'+name+'</div>';
+      if(wine.varietal)h+='<div class="wine-vintage">'+wine.varietal+'</div>';
+      if(wine.desc)h+='<div class="wine-desc" style="font-style:italic;color:var(--muted);font-size:13px">'+wine.desc+'</div>';
+      var pills='';
+      (wine.pourSizes||[]).forEach(function(p){pills+='<span style="display:inline-block;background:rgba(124,58,237,0.15);color:#b794f6;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:600;margin-right:8px">'+(p.label||p.oz+'oz')+' &middot; $'+p.price+'</span>'});
+      if(pills)h+='<div style="margin-top:6px">'+pills+'</div>';
+      h+='</div></div>';
+      if(wine.glassOnly){var bc=document.querySelector('.wine-card[data-wine-id="'+wine.id+'"]');if(bc)bc.style.display='none'}
+    });
+    btgCards.innerHTML=h;
+  }
 }
-
-================================================================================
-Add this esc() helper near the top of the <script> block (after var INV = [...]):
-
-function esc(str) {
-  var div = document.createElement('div');
-  div.appendChild(document.createTextNode(str));
 
 var _guestVersion=null,_guestPollTimer=null;
 var GAS_VERSION_URL=GAS_URL.replace('action=guestMenu','action=version');
