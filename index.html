@@ -3919,6 +3919,19 @@ var INV = [{"id":"wine_1","name":"Fre","varietal":"NA Champagne","vintage":"NV",
     }
   });
   update();
+
+  /* Nav pill click handlers - smooth scroll to section */
+  pills.forEach(function(p) {
+    p.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = p.getAttribute('data-section');
+      var target = document.getElementById(id);
+      if (target) {
+        var y = target.getBoundingClientRect().top + window.pageYOffset - 130;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    });
+  });
 })();
 
 /* Live Sync */
