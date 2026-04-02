@@ -483,7 +483,7 @@ body {
     fetch(GAS_URL)
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (!data || !Array.isArray(data.wines)) return;
+        if (!data) return;
         applyLiveData(data);
       })
       .catch(function(err) {
@@ -492,61 +492,61 @@ body {
   }
 
   function applyLiveData(data) {
-    var liveWines = data.wines || [];
+    var archived = data.archived || {};
+    var deletedIds = data.deletedIds || [];
+    var state = data.state || {};
 
-    // Build lookup by ID
-    var liveMap = {};
-    liveWines.forEach(function(w) { liveMap[w.id] = w; });
-
-    // Hide archived/deleted/out-of-stock cards
-    document.querySelectorAll('.wine-card').forEach(function(card) {
-      var id = card.dataset.wineId;
-      var live = liveMap[id];
-      if (live) {
-        if (live.archived || live.deleted || live.outOfStock) {
-          card.style.display = 'none';
-        }
-        // Update price if changed
-        if (live.retail && live.retail > 0) {
-          var priceEl = card.querySelector('.wine-price');
-          if (priceEl) priceEl.textContent = formatPrice(live.retail);
-        }
+    // First: hide wines that start at 0 qty (baked into HTML)
+    INV.forEach(function(w) {
+      var s = state[w.id];
+      var live = w.sq - (s ? Number(s.used || 0) : 0) + (s ? Number(s.added || 0) : 0);
+      if (live <= 0) {
+        var el = document.querySelector('[data-wine-id="' + w.id + '"]');
+        if (el) el.style.display = 'none';
       }
     });
 
-    // Hide empty sections after live update
-    document.querySelectorAll('.wine-section').forEach(function(section) {
-      var visibleCards = section.querySelectorAll('.wine-card:not([style*="display: none"])');
-      if (visibleCards.length === 0) section.style.display = 'none';
+    // Hide archived wines
+    Object.keys(archived).forEach(function(id) {
+      var el = document.querySelector('[data-wine-id="' + id + '"]');
+      if (el) el.style.display = 'none';
     });
 
-    // Populate BTG section
-    var btgWines = liveWines.filter(function(w) {
-      return w.btg && !w.archived && !w.deleted && !w.outOfStock;
+    // Hide deleted wines
+    deletedIds.forEach(function(id) {
+      var el = document.querySelector('[data-wine-id="' + id + '"]');
+      if (el) el.style.display = 'none';
     });
+
+    // Hide empty sections
+    document.querySelectorAll('.wine-section').forEach(function(section) {
+      var cards = section.querySelectorAll('.wine-card');
+      var anyVisible = false;
+      cards.forEach(function(c) { if (c.style.display !== 'none') anyVisible = true; });
+      section.style.display = anyVisible ? '' : 'none';
+    });
+
+    // BTG section
+    var btgWines = data.btgWines || [];
     var btgEl = document.getElementById('btgSection');
-    if (btgWines.length > 0) {
-      var btgHtml = '<section class="wine-section"><h2 class="section-title">By the Glass</h2>';
+    if (btgWines.length > 0 && btgEl) {
+      var html = '<h2 class="section-title" style="color:#7C3AED">By the Glass</h2>';
       btgWines.forEach(function(w) {
-        var inv = INV.find(function(i) { return i.id === w.id; });
-        if (!inv) return;
-        var meta = '';
-        if (inv.vintage && inv.vintage !== 'NV') meta += inv.vintage;
-        if (inv.format) { if (meta) meta += ' \u00b7 '; meta += inv.format; }
-        btgHtml += '<div class="wine-card" data-wine-id="' + w.id + '">';
-        btgHtml += '<div class="wine-info">';
-        btgHtml += '<div class="wine-name">' + inv.name + '<span class="btg-badge">BTG</span></div>';
-        if (meta) btgHtml += '<div class="wine-meta">' + meta + '</div>';
-        if (inv.desc) btgHtml += '<div class="wine-desc">' + inv.desc + '</div>';
-        btgHtml += '</div>';
-        var price = (w.retail && w.retail > 0) ? w.retail : inv.retail;
-        btgHtml += '<div class="wine-price">' + formatPrice(price) + '</div>';
-        btgHtml += '</div>';
+        var name = w.name;
+        if (!name) { var inv = INV.find(function(i) { return i.id === w.id; }); if (inv) name = inv.name; }
+        if (!name) return;
+        html += '<div class="wine-card" style="border-left:3px solid #7C3AED"><div class="wine-info"><div class="wine-name">' + name + '</div>';
+        if (w.varietal) html += '<div class="wine-meta">' + w.varietal + '</div>';
+        var pills = '';
+        (w.pourSizes || []).forEach(function(p) {
+          pills += '<span style="display:inline-block;background:rgba(124,58,237,0.15);color:#b794f6;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:600;margin-right:6px;margin-top:4px">' + (p.label || p.oz + 'oz') + ' &middot; $' + p.price + '</span>';
+        });
+        if (pills) html += '<div>' + pills + '</div>';
+        html += '</div></div>';
       });
-      btgHtml += '</section>';
-      btgEl.innerHTML = btgHtml;
-      btgEl.style.display = 'block';
-    } else {
+      btgEl.innerHTML = html;
+      btgEl.style.display = '';
+    } else if (btgEl) {
       btgEl.style.display = 'none';
     }
   }
